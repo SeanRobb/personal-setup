@@ -1,8 +1,12 @@
-# Ignore everything
+# Ignore everything by default
 *
 
-# But not these files...
+# Allow these files
 !.gitignore
 !.profile
-# etc...
+!.zshrc
+!install.sh
 
+# Allow claude directory and its contents
+!claude/
+!claude/**

@@ -4,7 +4,7 @@
 
 set -e
 
-REPO_DIR="$HOME/personal-setup"
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 echo "=== Personal Setup Installer ==="
 echo "Repo: $REPO_DIR"

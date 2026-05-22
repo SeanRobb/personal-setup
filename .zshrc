@@ -2,13 +2,32 @@
 # Sean's ZSH Configuration
 # =============================================================================
 
-# Git branch in prompt
-parse_git_branch() {
-  git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
+# =============================================================================
+# Prompt Configuration
+# =============================================================================
+autoload -Uz vcs_info
+precmd() { vcs_info }
+setopt PROMPT_SUBST
+
+# Git info format
+zstyle ':vcs_info:git:*' formats '%F{magenta}%b%f'
+zstyle ':vcs_info:git:*' actionformats '%F{magenta}%b%f|%F{red}%a%f'
+
+# Git dirty/clean indicator
+git_status() {
+    if git rev-parse --git-dir > /dev/null 2>&1; then
+        if [[ -n $(git status --porcelain 2>/dev/null) ]]; then
+            echo "%F{yellow}*%f"
+        else
+            echo "%F{green}✓%f"
+        fi
+    fi
 }
 
-location="Dojo"
-PS1='\[\e]0;\w\a\]\n\[\e[34m\]Work Hoodie @ ${location} \[\e[33m\][\d \T]\e[95m\]$(parse_git_branch) \[\e[36m\]\w \[\e[1;96m\]\n🍺 \[\e[0;0m\] '
+# Prompt: time | directory | git branch + status
+# Arrow is green on success, red on error
+PROMPT='%F{8}%T%f %F{cyan}%~%f ${vcs_info_msg_0_}$(git_status)
+%(?.%F{cyan}.%F{red})❯%f '
 
 # =============================================================================
 # Aliases

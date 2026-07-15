@@ -52,6 +52,17 @@ if [ -d "$REPO_DIR/claude/agents" ]; then
     done
 fi
 
+# Link all skills (each skill is a directory, so symlink the whole dir)
+mkdir -p "$HOME/.claude/skills"
+if [ -d "$REPO_DIR/claude/skills" ]; then
+    for skill in "$REPO_DIR/claude/skills"/*/; do
+        [ -d "$skill" ] || continue
+        skill_name=$(basename "$skill")
+        ln -sfn "$skill" "$HOME/.claude/skills/$skill_name"
+        echo "  Linked skills/$skill_name"
+    done
+fi
+
 echo ""
 echo "=== Done! ==="
 echo ""

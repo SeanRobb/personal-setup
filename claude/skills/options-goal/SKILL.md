@@ -143,11 +143,20 @@ lines (CSS/JS transitions) as text. Also reconcile declarations against
 code: grep each new `OptionN.tsx` for motion markers (`@keyframes`,
 `animation`, `transition`, motion libraries) — undeclared motion is a
 build defect: declare it or remove it. Builder self-declaration is never
-the only gate.
+the only gate. Exemption so static stays cheap: pure color/opacity hover
+transitions from framework utilities sit below the motion bar and need
+no declaration; transforms, keyframes, and library motion always do.
 
-Run the **mechanical motion audit** — executable checks, never eyeball
-judgment:
+Run the **mechanical motion audit** — deterministic checks, not persona
+judgment (its JS checks use claude-in-chrome's javascript tool even when
+the screenshot lens is a dev-server MCP):
 
+- variant motion defaults to CSS or the Web Animations API — that's what
+  the audit can see. rAF/JS-tween motion (GSAP, Framer springs) is
+  allowed only when it's the project's established motion system; the
+  interaction must say so, and the audit adds the library's own idle
+  check (e.g. no active tweens on the global timeline) plus two spaced
+  captures as a pixel fallback.
 - one-shot / ends static: after the declared duration elapses (hold the
   trigger for hover cases), run `document.getAnimations()` on the
   variant's subtree via the browser javascript tool — anything still

@@ -13,7 +13,10 @@ champion.
 
 ## Composition contract
 
-**FIRST ACTION: read `~/.claude/skills/options/SKILL.md`.** Every
+**FIRST ACTION: read the base options skill's SKILL.md** — it ships as
+this skill's sibling, so resolve `../options/SKILL.md` relative to this
+file (works in the plugin cache and any repo checkout); fall back to
+`~/.claude/skills/options/SKILL.md` for a standalone install. Every
 scaffolding convention comes from it verbatim and stays exactly compatible:
 framework detection, target resolution, `manifest.json`, `mocks.ts`,
 self-contained `OptionN.tsx` components, the grid index + `[id]` detail

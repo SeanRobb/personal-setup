@@ -135,6 +135,34 @@ spec) — inspecting those shots IS your render verification, and the same
 set becomes the reviewers' input. An agent saying "done" is a claim, not
 a fact.
 
+**Motion capture** (only for options with declared `interactions` —
+static variants cost nothing extra): in the same capture pass, drive each
+declared interaction and save a labeled keyframe strip — **rest →
+trigger → mid-animation → settled** — plus the relevant motion-spec
+lines (CSS/JS transitions) as text. Also reconcile declarations against
+code: grep each new `OptionN.tsx` for motion markers (`@keyframes`,
+`animation`, `transition`, motion libraries) — undeclared motion is a
+build defect: declare it or remove it. Builder self-declaration is never
+the only gate.
+
+Run the **mechanical motion audit** — executable checks, never eyeball
+judgment:
+
+- one-shot / ends static: after the declared duration elapses (hold the
+  trigger for hover cases), run `document.getAnimations()` on the
+  variant's subtree via the browser javascript tool — anything still
+  running, or declared with infinite iterations, fails. (This catches
+  loops a frame comparison would miss, e.g. a loop whose period matches
+  the comparison interval.)
+- reduced motion: the declared motion code carries a
+  `prefers-reduced-motion` guard (media query or `matchMedia`)
+- affordance at rest: the rest keyframe alone shows the hover affordance
+
+An audit-failing option goes back to the lead builder as a build defect
+and is PULLED from the round's review set; the round dispatches once the
+surviving set is stable and live, and the fixed option re-enters via a
+targeted re-check (never while its fix build is in flight).
+
 ### 4. REVIEW
 
 One agent per persona, all dispatched in one message. Each judges the LIVE
@@ -143,6 +171,15 @@ pages AND the round's screenshots against a strict bar:
 - **LIKE** = "I'd be happy to ship this exactly as-is."
 - Everything else = **PASS** + the single highest-leverage change that
   would flip it to LIKE. One change, not a list.
+
+For options with declared `interactions`, the reviewer also gets the
+keyframe strips + motion specs next to the full-page shot, and the
+verdict must cover the motion — no LIKE on an interactive option whose
+interaction the persona hasn't judged from the keyframes and specs. The
+shared strips are the motion verdict's anchor (live-page timing varies
+per visit and never overrides them). A motion-blind verdict on an
+interactive option is rejected at receipt — don't fold it into the
+manifest; dispatch a targeted re-check covering the motion.
 
 **Review scope**: options are immutable and the LIKE bar is absolute, so
 a standing verdict on an unchanged option cannot legitimately change.
@@ -221,7 +258,13 @@ the review — and re-check.
 ### 9. CADENCE
 
 Fully autonomous between owner inputs. After each review round, commit and
-post a compact scoreboard — informational, not blocking:
+post a compact scoreboard — informational, not blocking. For each
+interactive option in the round, record a short GIF of its money-moment
+(the shared capture lens if it records, else claude-in-chrome
+`gif_creator`) and attach the set to the scoreboard —
+owner-facing evidence for tie-breaks and the champion pin. GIFs are for
+the OWNER only; AI personas would read a single frame, so they get the
+keyframe strips instead.
 
 ```
 Round 3 — goal "5 both-liked, 2 interactive": have 2 both-liked, 1 of them interactive
@@ -289,6 +332,10 @@ semantic override is `icp` current-state, per REVIEW):
   "options": [{
     // base fields (id, file, status, note) unchanged; extensions:
     "parent": 4,                    // option this one forked from, null for de-novo
+    "interactions": [               // declared by the variant's builder; omit for static variants
+      { "el": "primary CTA", "trigger": "hover", "expect": "lifts 2px, shadow deepens, 180ms ease-out" },
+      { "el": "tier cards", "trigger": "load", "expect": "one-shot stagger entrance, 400ms total" }
+    ],
     "kill": { "round": 3, "why": "zero likes", "revive_if": "revive if the overlap bug is fixed" },
     "icp": [
       { "by": "A", "verdict": "LIKE", "champion": true, "round": 3, "note": "..." },
@@ -326,6 +373,11 @@ digest), plus the variant-specifics inline: the one file to write
 (`OptionN.tsx`, exact path + ID), the prop contract (`sampleProps`
 shape), and the specific direction or verbatim feedback item this
 variant implements. Nothing else — no manifest, no shared files.
+Deliverable: the file, plus — if the variant animates or responds to
+interaction — an `interactions` list (element, trigger, expected
+behavior, where the motion code lives; max 3 per option — needing more
+means the design is too busy) for the lead to record in the manifest;
+static variants return none.
 
 **Researcher (round 1 + delta re-runs):** component type, project
 context; re-runs also get the prior report, standing PASS reasons, and
@@ -337,7 +389,8 @@ inputs (persona brief, stay in character, opinionated, screenshots + the
 manifest notes so it judges intent, not just pixels) plus this skill's
 additions: live URLs, the strict LIKE bar, the one-flip-change rule for
 every PASS, the review scope (new/stale-flagged options only + full-field
-champion restatement). Deliverable via SendMessage: per-option
+champion restatement), and — for options with declared `interactions` —
+the keyframe strips + motion specs with the judge-the-motion requirement. Deliverable via SendMessage: per-option
 `{verdict, note, flip_change?}` + current champion + a 2-sentence
 synthesis.
 
@@ -362,7 +415,9 @@ verdict, and exactly what changed since it. Same LIKE bar.
   `prefers-reduced-motion` fallback; no looping ambient motion; hover
   affordances visible at rest. Never introduce: badges, ghost numerals,
   hype-cycle curves, ALL-CAPS letterspaced labels, boxed/bracketed active
-  states, colored left-border callouts.
+  states, colored left-border callouts. Compliance is verified
+  mechanically at capture time (the motion audit in BUILD), never
+  delegated to personas — they judge taste, not compliance.
 - **No invented facts,** prices, testimonials, or urgency in any variant.
 - **Agents report or get replaced.** Every agent must SendMessage its
   deliverable to main — idling without reporting is failure. After one

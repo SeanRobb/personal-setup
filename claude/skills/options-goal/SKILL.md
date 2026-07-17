@@ -23,7 +23,12 @@ here too. This file only defines what it explicitly adds or overrides:
 
 - The loop is autonomous (the base skill waits for the user between steps).
 - Verdicts are strict LIKE/PASS (see REVIEW) instead of free-form.
-- Manifest gains the extension fields below (all additive).
+- **Kill authority is delegated**: culling is autonomous (zero-LIKE
+  auto-kill plus standing owner kill rules), overriding the base rule that
+  the kill call is always the user's. Champion pinning stays the owner's.
+- Manifest gains the extension fields below. One semantic override: `icp`
+  becomes current-state per persona per option instead of the base's
+  accumulating history (see REVIEW).
 - All `/options/*` routes get `noindex` (robots meta tag or route header)
   at scaffold time.
 
@@ -67,10 +72,8 @@ and your judgment shows in the scoreboard so the owner can dispute it.
 - **Orchestrator (you, the main context)** — never edits project or
   scaffold files (scratchpad screenshots and git commits are yours; design
   and manifest edits are not). You run all owner-facing conversation
-  (discovery questions, escalations, scoreboards), route feedback, verify
-  agent claims with your own greps and screenshots, and commit after every
-  round. If you catch yourself about to edit a project file, stop and send
-  it to the lead builder instead.
+  (discovery questions, escalations, scoreboards), route feedback, and
+  verify agent claims with your own greps and screenshots.
 - **Lead builder (ONE persistent named agent for the whole loop)** — owns
   ALL shared-file edits: scaffolding, `manifest.json`, the grid's modules
   map, `mocks.ts`, the chip component, kill/status flips, chip updates. It
@@ -79,15 +82,14 @@ and your judgment shows in the scoreboard so the owner can dispute it.
   (`name: "lead-builder"`), continue it across rounds via SendMessage.
 - **Per-variant builders (short-lived, fanned out each round)** — one per
   variant, 4–6 per round, each writes exactly ONE new self-contained
-  `OptionN.tsx` from a self-contained brief. Conflict-free by construction:
-  variant files are independent; only the lead touches shared files. Fan
-  out with the Workflow tool's `pipeline()` when available; otherwise the
-  lead builds the variants itself serially under the same contract.
+  `OptionN.tsx` from its brief. Fan out with the Workflow tool's
+  `pipeline()` when available; otherwise YOU fan them out with parallel
+  Agent calls using the lead's briefs (lead-serial only as a last resort).
   The lead assigns IDs up front from `next_id`, integrates each finished
   variant (module registration + manifest entry), and confirms the build
   compiles and every page renders before reporting the round built.
-- **Researcher (fresh agent per round)** — background research on best
-  practices and anti-slop patterns for this component type.
+- **Researcher** — fresh agent for round 1's full research; delta re-runs
+  between rounds (see RESEARCH).
 - **Persona reviewers (one agent per persona, fresh each round)** — plus
   targeted re-check dispatches between rounds.
 
@@ -102,56 +104,63 @@ different copy, that's an owner escalation, not a builder decision.
 Run the base skill's discovery questions (vibe / constants / variance)
 with the owner YOURSELF via AskUserQuestion — agents can't interview the
 owner — in the same exchange that collects personas if those are missing.
-Then have the lead builder scaffold with the answers baked into its brief:
-manifest, mocks, grid, `[id]` detail pages, chip component, `noindex` on
+Then have the lead builder scaffold per the base skill, plus `noindex` on
 every `/options/*` route (Next.js App Router: an `app/options/layout.tsx`
 exporting `metadata = { robots: { index: false, follow: false } }`; other
 frameworks: the equivalent robots meta per page). Record `goal`,
-`personas`, and `round: 0` in the manifest. Commit.
+`personas`, and `round: 0` in the manifest. Commit. Dispatch the round-1
+researcher in the same message that briefs the lead — scaffold and
+research are independent; don't run them serially.
 
 ### 2. RESEARCH
 
-Dispatch the researcher: best practices + anti-slop patterns for this
-specific component type (pricing table, hero, etc.), with concrete
-do/don't examples. Its report shapes round 1's variant briefs. Re-run the
-researcher between rounds, feeding in the reviewers' standing objections
-and any open craft questions ("how do the good ones handle a 4th tier?").
+Round 1: best practices + anti-slop patterns for this specific component
+type (pricing table, hero, etc.), with concrete do/don't examples; the
+report shapes round 1's variant briefs. Between rounds: re-run seeded
+with the prior report plus the reviewers' standing objections and open
+craft questions ("how do the good ones handle a 4th tier?") so it
+researches the delta, not the baseline; skip the re-run when a round is
+pure verbatim flip-changes with no open questions.
 
 ### 3. BUILD
 
 The lead builder plans the round's variant set (4–6), assigns IDs, writes
 the per-variant briefs, fans out the per-variant builders, integrates, and
-verifies compile + rendered pages. Then YOU verify independently — grep
-that the files/registrations exist, screenshot the grid — before any
-review dispatches. An agent saying "done" is a claim, not a fact.
+verifies compile + rendered pages. Then YOU verify independently: grep
+that the files/registrations exist, and capture the round's screenshot
+set (every living variant's detail route, per the base skill's capture
+spec) — inspecting those shots IS your render verification, and the same
+set becomes the reviewers' input. An agent saying "done" is a claim, not
+a fact.
 
 ### 4. REVIEW
 
 One agent per persona, all dispatched in one message. Each judges the LIVE
-pages AND full-page screenshots (~1280px, taken by you into the
-scratchpad) of every non-killed variant, against a strict bar:
+pages AND the round's screenshots against a strict bar:
 
 - **LIKE** = "I'd be happy to ship this exactly as-is."
 - Everything else = **PASS** + the single highest-leverage change that
   would flip it to LIKE. One change, not a list.
 
-Each round every persona also RESTATES their current champion across all
-living options — the ★ migrates to wherever they now point; their previous
-champion entry is demoted to a plain note (per the base skill's history
-rule).
-
-The lead builder folds verdicts into the manifest as chips using the base
-`{by, champion?, note}` shape plus the extension fields, so the grid shows
-hover-note chips and a ★ on each persona's current champion.
+**Review scope**: options are immutable and the LIKE bar is absolute, so
+a standing verdict on an unchanged option cannot legitimately change.
+Each round a persona judges only options that are NEW since their last
+verdict or whose verdict was stale-flagged; standing verdicts persist
+and keep counting. The champion restatement is the exception: each round
+every persona restates their champion across ALL living options, and the
+★ migrates to wherever they now point.
 
 **One current entry per persona per option.** A fresh verdict REPLACES
 that persona's previous non-stale entry on the same option — no
 accumulating LIKE+PASS chip pairs across rounds. Two kinds of history do
-persist: entries marked `stale` by a premise correction (muted, until a
-re-review replaces them), and a superseded champion pick — the old
-option's entry loses its ★ in place and its note records the supersession
-(per the base skill's history rule); same single entry, never a second
-one.
+persist: entries flagged `stale` (muted, until a re-check replaces them),
+and a superseded champion pick — the old option's entry loses its ★ in
+place and its note records the supersession (per the base skill's history
+rule); same single entry, never a second one.
+
+The lead builder folds verdicts into the manifest as chips using the base
+`{by, champion?, note}` shape plus the extension fields, so the grid shows
+hover-note chips and a ★ on each persona's current champion.
 
 ### 5. CULL
 
@@ -161,10 +170,10 @@ After each review round:
 - Apply any standing **owner kill rules** immediately ("kill everything
   both passed on", "kill anything violating <premise>") — they stay in
   force for future rounds until revoked.
-- Every kill writes a manifest `kill` note preserving WHY it died and what
-  would revive it (e.g. "one bug from LIKE — revive if the overlap bug is
-  fixed"). Kills are status flags, never file deletions — anything is
-  revivable.
+- Kill semantics are the base skill's (status flag, file stays on disk —
+  anything is revivable). The addition: every kill writes a manifest
+  `kill` note preserving WHY it died and what would revive it (e.g. "one
+  bug from LIKE — revive if the overlap bug is fixed").
 
 ### 6. ITERATE
 
@@ -178,7 +187,7 @@ Next round evolves survivors:
   produces a **NEW numbered option**. Never mutate: the parent stays for
   A/B comparison and dies by the kill rules if superseded.
 
-Feed the new round's briefs (with the fresh research) to the lead builder;
+Feed the new round's briefs (with any fresh research) to the lead builder;
 loop back to step 3.
 
 ### 7. OWNER CHANNEL
@@ -188,10 +197,9 @@ premise corrections. Handle:
 
 - **Direction / kill rules** → apply immediately (steps 5–6).
 - **Premise correction** → record in the manifest's `owner_directions`
-  with `"kind": "premise_correction"`. It overrides all persona verdicts.
-  Mark every verdict that predates it `stale: true`; its chip renders
-  muted with "pre-dates correction". Stale LIKEs don't count toward the
-  goal — affected options need re-review.
+  with `"kind": "premise_correction"`. It overrides all persona verdicts:
+  stale-flag every verdict that predates it (see Operational rules) —
+  affected options need re-review.
 - **Screenshot feedback** → diagnose first (what exactly is the owner
   reacting to — spacing? contrast? a specific element?), state your
   diagnosis, then translate it into a builder brief. Don't build from a
@@ -203,12 +211,10 @@ When a judged variant's successor or a fix lands, dispatch a TARGETED
 re-check to the relevant persona(s) describing exactly what changed since
 their verdict — not a full re-review of everything.
 
-**Timing rule**: the build must be complete, integrated, and live BEFORE
-any review dispatches — never let a reviewer race an in-flight build. If a
-timing collision happens anyway, invalidate every verdict that could have
-seen the in-flight state — at minimum the affected option, the whole
-batch if the app itself was broken or half-integrated during the review —
-and re-check; never trust a verdict that might have seen stale pixels.
+Reviews never race builds (see Operational rules). If a collision happens
+anyway, stale-flag every verdict that could have seen the in-flight
+state — the whole batch if the app was broken or half-integrated during
+the review — and re-check.
 
 ### 9. CADENCE
 
@@ -226,8 +232,7 @@ Round 3 — goal "5 both-liked, 2 interactive": have 2 both-liked, 1 of them int
 Next: building 9 (from 7 + B's change), 10 (from 8 + A's change), 11 (convergence: both want quiet emphasis on middle tier)
 ```
 
-Two routine things block on the owner (the stall escalation below is a
-separate, exceptional case):
+Two routine things block on the owner:
 
 1. **Persona tie-breaks** — when the verdicts leave two or more options
    indistinguishable for a decision you must make (a cull call, or
@@ -262,7 +267,8 @@ Only after the owner pins the champion:
 
 ## Manifest extensions
 
-All additive on top of the base options schema — base fields unchanged:
+On top of the base options schema — base fields unchanged (the one
+semantic override is `icp` current-state, per REVIEW):
 
 ```jsonc
 {
@@ -278,7 +284,6 @@ All additive on top of the base options schema — base fields unchanged:
   ],
   "options": [{
     // base fields (id, file, status, note) unchanged; extensions:
-    "born_round": 2,
     "parent": 4,                    // option this one forked from, null for de-novo
     "kill": { "round": 3, "why": "zero likes", "revive_if": "revive if the overlap bug is fixed" },
     "icp": [
@@ -293,14 +298,15 @@ All additive on top of the base options schema — base fields unchanged:
 Chip rendering additions (extend the base chip component):
 
 - Chip label includes the verdict: `A ★LIKE`, `B PASS`.
-- ★ only on a persona's CURRENT champion; superseded champion entries
-  become plain notes.
-- `stale: true` chips render muted, tooltip prefixed "pre-dates
-  correction".
+- ★ only on a persona's CURRENT champion.
+- `stale: true` chips render muted, tooltip prefixed with the reason
+  ("pre-dates correction", "raced build").
 
 ## Agent briefs
 
-Keep every brief self-contained — agents get no conversation history.
+Every brief is self-contained — agents get no conversation history. A
+brief may point at a file the lead wrote (that's still self-contained:
+one Read, no history needed).
 
 **Lead builder (once, at start):** target + source path, frozen copy,
 constants/axes, manifest path and full extended schema, the shared-file
@@ -309,24 +315,27 @@ own only their one OptionN.tsx"), anti-slop + animation rules, and the
 requirement to SendMessage a build report (files written, IDs, compile
 status, page URLs) after every round.
 
-**Per-variant builder (each variant, each round):** the one file to write
-(`OptionN.tsx`, exact path + ID), the prop contract (`sampleProps` shape),
-frozen copy verbatim, the specific direction or verbatim feedback item this
-variant implements, relevant research findings, anti-slop + animation
-rules, the project's styling system. Nothing else — no manifest, no shared
-files.
+**Per-variant builder (each variant, each round):** the path to a
+ROUND-BRIEF file the lead writes once per round (frozen copy verbatim,
+anti-slop + animation rules, the project's styling system, research
+digest), plus the variant-specifics inline: the one file to write
+(`OptionN.tsx`, exact path + ID), the prop contract (`sampleProps`
+shape), and the specific direction or verbatim feedback item this
+variant implements. Nothing else — no manifest, no shared files.
 
-**Researcher (each round):** component type, project context, and (round
-≥2) the standing PASS reasons and open craft questions. Deliverable: a
-short report — patterns that work, anti-slop patterns to avoid, 2–3
-concrete ideas per open question.
+**Researcher (round 1 + delta re-runs):** component type, project
+context; re-runs also get the prior report, standing PASS reasons, and
+open craft questions. Deliverable: a short report — patterns that work,
+anti-slop patterns to avoid, 2–3 concrete ideas per open question.
 
-**Persona reviewer (each round):** the persona brief (stay in character),
-screenshot paths + live URLs for every living variant, the manifest notes
-(judge intent, not just pixels), the strict LIKE bar, the one-flip-change
-rule for every PASS, and the champion-restatement requirement. Deliverable
-via SendMessage: per-option `{verdict, note, flip_change?}` + current
-champion + a 2-sentence synthesis.
+**Persona reviewer (each round):** the base skill's Step 7.3 reviewer
+inputs (persona brief, stay in character, opinionated, screenshots + the
+manifest notes so it judges intent, not just pixels) plus this skill's
+additions: live URLs, the strict LIKE bar, the one-flip-change rule for
+every PASS, the review scope (new/stale-flagged options only + full-field
+champion restatement). Deliverable via SendMessage: per-option
+`{verdict, note, flip_change?}` + current champion + a 2-sentence
+synthesis.
 
 **Targeted re-check:** persona brief, the specific option(s), their prior
 verdict, and exactly what changed since it. Same LIKE bar.
@@ -337,6 +346,14 @@ verdict, and exactly what changed since it. Same LIKE bar.
   screenshot tool the reviewers and owner use (dev-server MCP when
   available, else claude-in-chrome). An agent's private test harness
   passing does not count as verification.
+- **Reviews never race builds.** The build must be complete, integrated,
+  and live before ANY review dispatches — initial round, targeted
+  re-check, or owner spot-check.
+- **Stale means doesn't count.** A verdict counts only while what it
+  judged still holds. Any invalidation — a premise correction, a verdict
+  that might have seen in-flight build state — flags the entry
+  `stale: true` (muted chip, tooltip says why, excluded from goal counts)
+  until a targeted re-check replaces it.
 - **Animation discipline.** Every animation: one-shot, ends static,
   `prefers-reduced-motion` fallback; no looping ambient motion; hover
   affordances visible at rest. Never introduce: badges, ghost numerals,
@@ -347,9 +364,8 @@ verdict, and exactly what changed since it. Same LIKE bar.
   deliverable to main — idling without reporting is failure. After one
   evidence-backed nudge goes unanswered for ~5 minutes, replace the agent
   with a FRESH one carrying a consolidated self-contained brief (for the
-  lead builder, that brief must carry its cross-round memory: what died
-  and why, each persona's wants, exhausted directions). Stale agents
-  replay old queues; don't resuscitate them.
+  lead builder, that brief must carry its cross-round memory — see
+  Roles). Stale agents replay old queues; don't resuscitate them.
 - **Commit after every round** (scaffold, chips, kills, owner directions)
   so the whole verdict history lives in git. Scaffolding never merges.
 

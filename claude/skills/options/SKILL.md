@@ -1,6 +1,6 @@
 ---
 name: options
-description: Visual iteration loop for front-end design. Scaffolds /options/<target> routes inside the user's web app, generates N variants of a component/page/section, then runs a kill → champion → regen → promote loop. Use when the user says "/options" (with or without args) or asks to "explore variations", "try a few directions", "give me options for", or otherwise wants to compare visual design alternatives for a UI piece side-by-side.
+description: Visual iteration loop for front-end design. Scaffolds /options/<target> routes inside the user's web app, generates N variants of a component/page/section, runs a persona/ICP review round whose verdicts render as hoverable chips on the option pages, then a kill → champion → regen → promote loop driven by the user. Use when the user says "/options" (with or without args) or asks to "explore variations", "try a few directions", "give me options for", or otherwise wants to compare visual design alternatives for a UI piece side-by-side.
 ---
 
 # Options: visual iteration for front-end design
@@ -23,6 +23,7 @@ language drives selection between them.
 | Input | Action |
 |---|---|
 | `/options new <target> <N> "<prompt>"` | Discover, scaffold, generate N options |
+| `/options review [target]` | Run the persona review round, fold verdicts back into the manifest/chips |
 | `/options regen [N]` | Add N more (default 3), keeping survivors + champions |
 | `/options promote [id]` | Replace source file with champion; ask to clean up |
 | `/options clean [target]` | Delete `/options/<target>/` scaffolding |
@@ -30,6 +31,13 @@ language drives selection between them.
 | "champion 3" / "pin 3" | Mark option 3 as champion |
 | "unkill 4" / "unchampion 3" | Revert to active |
 | "regen but weirder / more conservative / focused on X" | Same as regen with steering |
+
+**The standard workflow is: scaffold → persona review → verdicts rendered
+back onto the option pages as chips → the user reviews with that feedback
+visible and gives kills/champions in chat.** The persona review is not
+optional garnish; run it after every scaffold and every regen (a targeted
+addendum review for just the new variants is fine) unless the user says to
+skip it. The personas advise; the user decides.
 
 Always parse target/IDs leniently. "Kill the second and fourth ones" should
 work the same as "kill 2 and 4".
@@ -129,8 +137,49 @@ After scaffolding, print:
   Reply with "kill 2 and 4, champion 3" or "/options regen" or "/options promote 3".
 ```
 
-Do NOT take screenshots automatically. Do NOT start the dev server. The
-user opens the URL themselves.
+Do NOT screenshot *for the user* — they open the URL themselves. (The
+persona review step below takes its own screenshots as reviewer input;
+that's different.) Start the dev server only if one isn't already running
+and the review step needs it.
+
+## Step 7 — Persona review loop
+
+After scaffolding (and after every regen), run a review round with
+independent persona agents before asking the user to judge:
+
+1. **Find the personas.** Look for persona/ICP docs in the project (e.g.
+   `docs/icp-*.md`, `docs/personas/`). If none exist, ask the user which
+   perspectives should review (e.g. "the buyer" and "a design-literate
+   skeptic") and improvise the persona brief from their answer. Two
+   personas with *opposing* failure modes work best — one who punishes
+   burying the facts, one who punishes overselling.
+2. **Capture reviewer input.** Build, then screenshot every variant's
+   detail route full-page at ~1280px into the scratchpad. Screenshots keep
+   each reviewer's context clean and guarantee both judge identical pixels.
+3. **Spawn one background agent per persona** (all in one message so they
+   run concurrently). Each agent: reads its persona doc, stays in
+   character, reviews every variant from the screenshots + the manifest
+   notes (so it judges the *intent*, not just pixels), and returns
+   per-target CHAMPION / runner-up / KILLs with persona-voiced reasons plus
+   a short cross-target synthesis. Instruct it to be opinionated — no
+   fence-sitting — and to flag anything that distorts a factual claim.
+4. **Fold verdicts into the manifest.** Every option gets an `icp` array
+   (see schema below): `champion: true` for that persona's suggested
+   champion, plain entries for every other piece of feedback (kills,
+   runner-ups, caveats), with the reasoning as a 1–2 sentence
+   persona-voiced quote.
+5. **Render chips.** A shared chip component on both the grid and detail
+   pages shows one chip per feedback entry next to the option's status:
+   starred chip = suggested champion, plain chip = other feedback, distinct
+   color per persona, and the reasoning in a tooltip on hover/focus
+   (`tabindex="0"` so keyboard users get it too).
+6. **Synthesize in chat.** Report agreements, conflicts, and a recommended
+   champion per target — explicitly framed as input to the *user's*
+   kill/champion call, never as a decision. Where two personas' champions
+   vary independent axes, offer (or just cut) a merge variant — merges of
+   compatible champions routinely beat both parents.
+7. **Iterate.** When the user's feedback produces new/changed variants, run
+   a targeted addendum review of just those variants and update the chips.
 
 ## Manifest schema
 
@@ -146,11 +195,16 @@ user opens the URL themselves.
   "axes": ["typography", "layout", "color"],
   "next_id": 6,
   "options": [
-    {"id": 1, "file": "Option1.tsx", "status": "killed", "note": "too busy"},
-    {"id": 2, "file": "Option2.tsx", "status": "champion", "pinned_at": "2026-06-05T10:00:00Z"},
-    {"id": 3, "file": "Option3.tsx", "status": "active"},
-    {"id": 4, "file": "Option4.tsx", "status": "killed"},
-    {"id": 5, "file": "Option5.tsx", "status": "active"}
+    {"id": 1, "file": "Option1.tsx", "status": "killed", "note": "too busy", "icp": []},
+    {"id": 2, "file": "Option2.tsx", "status": "champion", "pinned_at": "2026-06-05T10:00:00Z", "icp": [
+      {"by": "A", "champion": true, "note": "The one I'd actually buy from — the credentials are legible instead of decorative."},
+      {"by": "B", "note": "Runner-up — clean, but the footnote strip beats it on restraint."}
+    ]},
+    {"id": 3, "file": "Option3.tsx", "status": "active", "icp": [
+      {"by": "B", "champion": true, "note": "The only one that reads like a person made a layout decision."}
+    ]},
+    {"id": 4, "file": "Option4.tsx", "status": "killed", "icp": []},
+    {"id": 5, "file": "Option5.tsx", "status": "active", "icp": []}
   ]
 }
 ```
@@ -164,6 +218,14 @@ Rules:
 - Killed files stay on disk (the grid page renders them faded). Only
   cleanup or promote removes them.
 - `next_id` increments by 1 each time a new option is added (never reuses).
+- `icp` holds persona-review feedback (normalize it to `[]` on every entry
+  so the JSON type stays uniform). Each entry: `by` (short persona key,
+  e.g. "A"/"B"), optional `champion: true` (that persona's suggested
+  champion for the target — rendered as a starred chip), and `note` (the
+  persona-voiced why, 1–2 sentences — rendered as the chip's tooltip).
+  Keep entries current: a persona's superseded champion pick stays as a
+  plain note ("my champion before #16 — ..."), so the history reads on the
+  page.
 
 ## Kill / champion / regen
 
@@ -299,6 +361,12 @@ export default async function Page() {
 Fill the `modules` object with one entry per option file at scaffold time;
 update it on each regen.
 
+Give the grid header two filter toggles — "hide killed" and "champions
+only" — implemented as buttons with `aria-pressed` that toggle
+data-attributes on `<body>` (CSS does the hiding via the blocks' status
+classes). Persist the state in localStorage under one key so the filter
+carries across every target's grid page.
+
 ### Detail route — `app/options/<target>/[id]/page.tsx`
 
 ```tsx
@@ -315,6 +383,21 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   return <Component {...sampleProps} />;
 }
 ```
+
+### ICP chips — shared component used by grid + detail pages
+
+One small shared component renders the `icp` feedback next to each option's
+status bar. Framework-agnostic spec (adapt to the project):
+
+- One chip per `icp` entry, labeled `ICP <by>`; a distinct muted color per
+  persona; `champion: true` chips get a leading ★ (gold) and a subtle ring.
+- The `note` renders in a tooltip positioned above the chip, visible on
+  `:hover` and `:focus-visible`; give the chip `tabindex="0"` and an
+  `aria-label` containing the full note so it works without a pointer.
+- Monospace, pill-shaped, small (~0.7rem) — it belongs to the scaffolding
+  chrome, not the design under review, so keep it visually distinct from
+  the variant's own styling.
+- `prefers-reduced-motion`: no tooltip transition.
 
 ### Champions index — `app/options/champs/page.tsx`
 
@@ -340,7 +423,12 @@ update it whenever a champion is added, removed, or a target is cleaned up.
 
 ## What NOT to do
 
-- Don't take screenshots automatically. User opens the URL.
+- Don't screenshot for the user or narrate what variants look like — they
+  open the URL. (Persona reviewers DO get screenshots; that's their input.)
+- Don't let personas decide. Their verdicts are chips and a synthesis; the
+  kill/champion call is always the user's.
+- Don't ship a review round where every persona has the same failure mode —
+  pick reviewers who disagree for different reasons.
 - Don't add interactive on-page buttons for kill/champion — the chat skill
   is the control surface; the page is a viewer.
 - Don't put any logic in `OptionK.tsx` that wouldn't survive promotion (no

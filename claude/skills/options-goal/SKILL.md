@@ -47,17 +47,20 @@ Defaults when omitted:
   one sentence each BEFORE starting. `personas: from <glob>` means read
   those files as the persona briefs.
 
-Parse the goal into a predicate stored in the manifest, e.g.
-`{"raw": "5 both-liked, 2 interactive", "liked_by_all": 5, "interactive_min": 2}`.
-"Both-liked" / "liked-by-all" = every persona's CURRENT verdict on that
-option is a fresh (non-stale) LIKE. A persona's CURRENT verdict on an
-option is their highest-round entry for it. `interactive_min` counts
-WITHIN the qualifying set: at least that many of the options counting
-toward `liked_by_all` must be `interactive: true` — interactive options
-nobody liked don't satisfy it. If the wording doesn't parse cleanly,
-restate your interpretation to the owner and get a yes before round 1.
-Check the predicate after every review round; only fresh LIKEs on
-non-killed options count.
+The goal is a FREE-FORM exit condition — the owner writes it as a
+sentence, not parameters. Store it verbatim in the manifest as
+`goal.raw`, plus `goal.interpretation`: your one-sentence restatement of
+what must be true to stop. If the wording is ambiguous, get a yes on the
+interpretation before round 1; if it's plain (like the examples), record
+it and go. After every review round, judge the manifest against the
+interpretation. Two counting rules are fixed no matter how the goal is
+worded: "liked" = a fresh (non-stale) LIKE on a non-killed option, and
+"both-liked" / "liked-by-all" = every persona's CURRENT verdict (their
+highest-round entry) on that option is such a LIKE. Any other quality
+the goal names ("interactive", "animated", "on-brand", …) is yours to
+judge per option at check time — counted among the options that
+otherwise qualify (a quality nobody LIKEd doesn't satisfy the goal) —
+and your judgment shows in the scoreboard so the owner can dispute it.
 
 ## Roles
 
@@ -213,7 +216,7 @@ Fully autonomous between owner inputs. After each review round, commit and
 post a compact scoreboard — informational, not blocking:
 
 ```
-Round 3 — goal: 5 both-liked (have 2), ≥2 of them interactive (have 1)
+Round 3 — goal "5 both-liked, 2 interactive": have 2 both-liked, 1 of them interactive
 | # | A | B | status |
 |---|---|---|--------|
 | 3 | ★LIKE | LIKE | both-liked |
@@ -264,7 +267,8 @@ All additive on top of the base options schema — base fields unchanged:
 ```jsonc
 {
   // ...base fields (target, source, kind, prompt, constants, axes, next_id)...
-  "goal": { "raw": "5 both-liked, 2 interactive", "liked_by_all": 5, "interactive_min": 2 },
+  "goal": { "raw": "5 both-liked, 2 interactive",
+            "interpretation": "stop when 5 non-killed options hold fresh LIKEs from both personas, at least 2 of those 5 interactive" },
   "personas": [ { "key": "A", "brief": "cautious non-technical buyer" },
                 { "key": "B", "brief": "design-literate slop skeptic" } ],
   "round": 3,
@@ -276,7 +280,6 @@ All additive on top of the base options schema — base fields unchanged:
     // base fields (id, file, status, note) unchanged; extensions:
     "born_round": 2,
     "parent": 4,                    // option this one forked from, null for de-novo
-    "interactive": true,           // counts toward interactive_min
     "kill": { "round": 3, "why": "zero likes", "revive_if": "revive if the overlap bug is fixed" },
     "icp": [
       { "by": "A", "verdict": "LIKE", "champion": true, "round": 3, "note": "..." },

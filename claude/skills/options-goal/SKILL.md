@@ -50,18 +50,24 @@ Defaults when omitted:
 Parse the goal into a predicate stored in the manifest, e.g.
 `{"raw": "5 both-liked, 2 interactive", "liked_by_all": 5, "interactive_min": 2}`.
 "Both-liked" / "liked-by-all" = every persona's CURRENT verdict on that
-option is a fresh (non-stale) LIKE. If the wording doesn't parse cleanly,
+option is a fresh (non-stale) LIKE. A persona's CURRENT verdict on an
+option is their highest-round entry for it. `interactive_min` counts
+WITHIN the qualifying set: at least that many of the options counting
+toward `liked_by_all` must be `interactive: true` — interactive options
+nobody liked don't satisfy it. If the wording doesn't parse cleanly,
 restate your interpretation to the owner and get a yes before round 1.
 Check the predicate after every review round; only fresh LIKEs on
 non-killed options count.
 
 ## Roles
 
-- **Orchestrator (you, the main context)** — never edits files. You route
-  feedback, verify agent claims with your own greps and screenshots, update
-  nothing yourself except conversation state, post scoreboards, commit
-  after every round, and escalate to the owner. If you catch yourself about
-  to edit a file, stop and send it to the lead builder instead.
+- **Orchestrator (you, the main context)** — never edits project or
+  scaffold files (scratchpad screenshots and git commits are yours; design
+  and manifest edits are not). You run all owner-facing conversation
+  (discovery questions, escalations, scoreboards), route feedback, verify
+  agent claims with your own greps and screenshots, and commit after every
+  round. If you catch yourself about to edit a project file, stop and send
+  it to the lead builder instead.
 - **Lead builder (ONE persistent named agent for the whole loop)** — owns
   ALL shared-file edits: scaffolding, `manifest.json`, the grid's modules
   map, `mocks.ts`, the chip component, kill/status flips, chip updates. It
@@ -90,10 +96,15 @@ different copy, that's an owner escalation, not a builder decision.
 
 ### 1. SCAFFOLD
 
-Run the options skill's discovery + scaffold via the lead builder:
+Run the base skill's discovery questions (vibe / constants / variance)
+with the owner YOURSELF via AskUserQuestion — agents can't interview the
+owner — in the same exchange that collects personas if those are missing.
+Then have the lead builder scaffold with the answers baked into its brief:
 manifest, mocks, grid, `[id]` detail pages, chip component, `noindex` on
-every `/options/*` route. Record `goal`, `personas`, and `round: 0` in the
-manifest. Commit.
+every `/options/*` route (Next.js App Router: an `app/options/layout.tsx`
+exporting `metadata = { robots: { index: false, follow: false } }`; other
+frameworks: the equivalent robots meta per page). Record `goal`,
+`personas`, and `round: 0` in the manifest. Commit.
 
 ### 2. RESEARCH
 
@@ -129,6 +140,15 @@ rule).
 The lead builder folds verdicts into the manifest as chips using the base
 `{by, champion?, note}` shape plus the extension fields, so the grid shows
 hover-note chips and a ★ on each persona's current champion.
+
+**One current entry per persona per option.** A fresh verdict REPLACES
+that persona's previous non-stale entry on the same option — no
+accumulating LIKE+PASS chip pairs across rounds. Two kinds of history do
+persist: entries marked `stale` by a premise correction (muted, until a
+re-review replaces them), and a superseded champion pick — the old
+option's entry loses its ★ in place and its note records the supersession
+(per the base skill's history rule); same single entry, never a second
+one.
 
 ### 5. CULL
 
@@ -182,8 +202,10 @@ their verdict — not a full re-review of everything.
 
 **Timing rule**: the build must be complete, integrated, and live BEFORE
 any review dispatches — never let a reviewer race an in-flight build. If a
-timing collision happens anyway, invalidate that verdict and re-check;
-never trust a verdict that might have seen stale pixels.
+timing collision happens anyway, invalidate every verdict that could have
+seen the in-flight state — at minimum the affected option, the whole
+batch if the app itself was broken or half-integrated during the review —
+and re-check; never trust a verdict that might have seen stale pixels.
 
 ### 9. CADENCE
 
@@ -191,7 +213,7 @@ Fully autonomous between owner inputs. After each review round, commit and
 post a compact scoreboard — informational, not blocking:
 
 ```
-Round 3 — goal: 5 both-liked (have 2), ≥2 interactive (have 1)
+Round 3 — goal: 5 both-liked (have 2), ≥2 of them interactive (have 1)
 | # | A | B | status |
 |---|---|---|--------|
 | 3 | ★LIKE | LIKE | both-liked |
@@ -201,12 +223,23 @@ Round 3 — goal: 5 both-liked (have 2), ≥2 interactive (have 1)
 Next: building 9 (from 7 + B's change), 10 (from 8 + A's change), 11 (convergence: both want quiet emphasis on middle tier)
 ```
 
-Only TWO things block on the owner:
+Two routine things block on the owner (the stall escalation below is a
+separate, exceptional case):
 
-1. **Persona tie-breaks** — bring screenshots of the tied options; never
-   pick for them.
+1. **Persona tie-breaks** — when the verdicts leave two or more options
+   indistinguishable for a decision you must make (a cull call, or
+   personas' champion restatements split with no dominant pick). Bring
+   screenshots of the tied options; never pick for them.
 2. **Pinning the final champion once the goal holds** — personas advise,
    the owner decides. Present their split honestly if there is one.
+
+**Stall escalation** (an escalation, not a routine block): if 2
+consecutive rounds add zero net progress toward the goal — no new fresh
+both-liked options and no PASSes flipped — stop building and escalate:
+post the scoreboard, diagnose why convergence stalled (which objections
+keep recurring, which directions are exhausted), and ask the owner
+whether to loosen the goal, change direction, add a kill rule, or stop.
+Never loop indefinitely against a bar the personas won't clear.
 
 ### 10. FINISH
 
@@ -309,9 +342,11 @@ verdict, and exactly what changed since it. Same LIKE bar.
 - **No invented facts,** prices, testimonials, or urgency in any variant.
 - **Agents report or get replaced.** Every agent must SendMessage its
   deliverable to main — idling without reporting is failure. After one
-  evidence-backed nudge, replace the agent with a FRESH one carrying a
-  consolidated self-contained brief. Stale agents replay old queues; don't
-  resuscitate them.
+  evidence-backed nudge goes unanswered for ~5 minutes, replace the agent
+  with a FRESH one carrying a consolidated self-contained brief (for the
+  lead builder, that brief must carry its cross-round memory: what died
+  and why, each persona's wants, exhausted directions). Stale agents
+  replay old queues; don't resuscitate them.
 - **Commit after every round** (scaffold, chips, kills, owner directions)
   so the whole verdict history lives in git. Scaffolding never merges.
 

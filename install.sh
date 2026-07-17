@@ -46,6 +46,23 @@ link_file "$REPO_DIR/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 # Install with: /plugin marketplace add SeanRobb/personal-setup
 #               /plugin install personal-setup@sean-tools
 
+# Link all skills (whole directory each, so skills can carry helpers/refs)
+mkdir -p "$HOME/.claude/skills"
+if [ -d "$REPO_DIR/claude/skills" ]; then
+    for skill_dir in "$REPO_DIR/claude/skills"/*/; do
+        if [ -d "$skill_dir" ]; then
+            skill_name=$(basename "$skill_dir")
+            dest="$HOME/.claude/skills/$skill_name"
+            if [ -e "$dest" ] && [ ! -L "$dest" ]; then
+                echo "  Backing up $dest -> ${dest}.backup"
+                mv "$dest" "${dest}.backup"
+            fi
+            ln -sfn "${skill_dir%/}" "$dest"
+            echo "  Linked $dest"
+        fi
+    done
+fi
+
 echo ""
 echo "=== Done! ==="
 echo ""

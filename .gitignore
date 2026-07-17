@@ -10,3 +10,7 @@
 # Allow claude directory and its contents
 !claude/
 !claude/**
+
+# Allow plugin marketplace manifest
+!.claude-plugin/
+!.claude-plugin/**

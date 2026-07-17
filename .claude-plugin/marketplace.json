@@ -1,0 +1,11 @@
+{
+  "name": "sean-tools",
+  "owner": { "name": "Sean Robb" },
+  "plugins": [
+    {
+      "name": "personal-setup",
+      "source": "./claude",
+      "description": "Sean's personal skills and agents"
+    }
+  ]
+}

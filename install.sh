@@ -37,31 +37,14 @@ link_file "$REPO_DIR/.profile" "$HOME/.profile"
 # --- Claude Code ---
 echo ""
 echo "Claude Code:"
-mkdir -p "$HOME/.claude/agents"
+mkdir -p "$HOME/.claude"
 
 # Global instructions
 link_file "$REPO_DIR/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 
-# Link all agents
-if [ -d "$REPO_DIR/claude/agents" ]; then
-    for agent in "$REPO_DIR/claude/agents"/*.md; do
-        if [ -f "$agent" ]; then
-            agent_name=$(basename "$agent")
-            link_file "$agent" "$HOME/.claude/agents/$agent_name"
-        fi
-    done
-fi
-
-# Link all skills (each skill is a directory, so symlink the whole dir)
-mkdir -p "$HOME/.claude/skills"
-if [ -d "$REPO_DIR/claude/skills" ]; then
-    for skill in "$REPO_DIR/claude/skills"/*/; do
-        [ -d "$skill" ] || continue
-        skill_name=$(basename "$skill")
-        ln -sfn "$skill" "$HOME/.claude/skills/$skill_name"
-        echo "  Linked skills/$skill_name"
-    done
-fi
+# Skills and agents are provided by the plugin (claude/ is the plugin root).
+# Install with: /plugin marketplace add SeanRobb/personal-setup
+#               /plugin install personal-setup@sean-tools
 
 echo ""
 echo "=== Done! ==="

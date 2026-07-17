@@ -22,7 +22,9 @@ kill/champion/regen/promote/clean verbs. Its "What NOT to do" list applies
 here too. This file only defines what it explicitly adds or overrides:
 
 - The loop is autonomous (the base skill waits for the user between steps).
-- Verdicts are strict LIKE/PASS (see REVIEW) instead of free-form.
+- Verdicts are strict LIKE/PASS (see REVIEW) instead of free-form, and
+  chip labels change accordingly (`A ★LIKE` / `B PASS`, replacing the
+  base's `ICP <by>` form).
 - **Kill authority is delegated**: culling is autonomous (zero-LIKE
   auto-kill plus standing owner kill rules), overriding the base rule that
   the kill call is always the user's. Champion pinning stays the owner's.
@@ -234,10 +236,12 @@ Next: building 9 (from 7 + B's change), 10 (from 8 + A's change), 11 (convergenc
 
 Two routine things block on the owner:
 
-1. **Persona tie-breaks** — when the verdicts leave two or more options
-   indistinguishable for a decision you must make (a cull call, or
-   personas' champion restatements split with no dominant pick). Bring
-   screenshots of the tied options; never pick for them.
+1. **Persona tie-breaks** — when persona guidance splits with no dominant
+   direction and the next round depends on the choice: flip-changes that
+   contradict each other (or an owner direction) so both can't be
+   honored, or champion restatements pointing at incompatible lineages
+   when the round can't iterate both. Bring screenshots of the tied
+   options; never pick for them. (Culling never ties — it's rule-driven.)
 2. **Pinning the final champion once the goal holds** — personas advise,
    the owner decides. Present their split honestly if there is one.
 
